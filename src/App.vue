@@ -3,32 +3,67 @@
     <n-spin size="large" />
   </div>
 
-  <div v-else-if="!isAuthenticated" class="auth-shell">
-    <n-card class="login-card" title="后台登录" size="small">
-      <n-form label-placement="top">
-        <n-form-item label="用户名">
-          <n-input
-            v-model:value="loginForm.username"
-            placeholder="请输入用户名"
-            @keyup.enter="handleLogin"
-          />
-        </n-form-item>
-        <n-form-item label="密码">
-          <n-input
-            v-model:value="loginForm.password"
-            type="password"
-            show-password-on="click"
-            placeholder="请输入密码"
-            @keyup.enter="handleLogin"
-          />
-        </n-form-item>
-      </n-form>
-      <template #footer>
-        <n-space justify="end">
-          <n-button type="primary" :loading="loginLoading" @click="handleLogin">登录</n-button>
-        </n-space>
-      </template>
-    </n-card>
+  <div v-else-if="!isAuthenticated" class="auth-shell auth-shell-login">
+    <section class="login-panel" aria-label="后台登录">
+      <div class="login-hero">
+        <div class="login-brand">
+          <div class="brand-icon login-brand-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16v12H4Z" />
+              <path d="m4 8 8 6 8-6" />
+              <path d="M7 5h10" />
+            </svg>
+          </div>
+          <div>
+            <h1>Microsoft 账号工作台</h1>
+            <p>Graph / IMAP 取件 · 账号管理</p>
+          </div>
+        </div>
+        <div class="login-visual">
+          <span class="login-visual-pill">Graph</span>
+          <span class="login-visual-pill">IMAP OAuth2</span>
+          <span class="login-visual-pill">Cloudflare</span>
+        </div>
+      </div>
+
+      <div class="login-form-panel">
+        <div class="login-form-heading">
+          <span class="login-form-kicker">安全入口</span>
+          <h2>登录后台</h2>
+          <p>进入新版工作台管理账号与取件结果。</p>
+        </div>
+
+        <n-form label-placement="top" class="login-form">
+          <n-form-item label="用户名">
+            <n-input
+              v-model:value="loginForm.username"
+              class="workbench-input login-input"
+              placeholder="请输入用户名"
+              @keyup.enter="handleLogin"
+            />
+          </n-form-item>
+          <n-form-item label="密码">
+            <n-input
+              v-model:value="loginForm.password"
+              class="workbench-input login-input"
+              type="password"
+              show-password-on="click"
+              placeholder="请输入密码"
+              @keyup.enter="handleLogin"
+            />
+          </n-form-item>
+        </n-form>
+
+        <button class="login-submit-button" type="button" :disabled="loginLoading" @click="handleLogin">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+            <path d="m10 17 5-5-5-5" />
+            <path d="M15 12H3" />
+          </svg>
+          <span>{{ loginLoading ? '登录中' : '进入工作台' }}</span>
+        </button>
+      </div>
+    </section>
   </div>
 
   <div v-else class="page app-page">
