@@ -123,11 +123,6 @@ body {
   border-radius: 16px;
 }
 
-.login-brand-icon svg {
-  width: 29px;
-  height: 29px;
-}
-
 .login-brand h1 {
   margin: 0;
   color: #1d2d44;
@@ -312,20 +307,17 @@ body {
   display: grid;
   place-items: center;
   color: #fff;
-  background: linear-gradient(135deg, #3479ff, #1ab7d9);
   box-shadow: 0 12px 20px rgba(47, 103, 244, 0.26);
   font-size: 1.35rem;
   line-height: 1;
+  overflow: hidden;
 }
 
-.brand-icon svg {
-  width: 23px;
-  height: 23px;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  fill: none;
+.brand-icon-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
 }
 
 .brand-block h1 {
@@ -656,7 +648,6 @@ body {
 }
 
 .workbench-action svg,
-.brand-icon svg,
 .sidebar-title-icon svg,
 .empty-mail-icon svg,
 .workbench-detail-close svg,

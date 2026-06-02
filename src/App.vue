@@ -8,11 +8,7 @@
       <div class="login-hero">
         <div class="login-brand">
           <div class="brand-icon login-brand-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 7h16v12H4Z" />
-              <path d="m4 8 8 6 8-6" />
-              <path d="M7 5h10" />
-            </svg>
+            <img class="brand-icon-image" src="/brand-icon.svg" alt="" aria-hidden="true" />
           </div>
           <div>
             <h1>Microsoft 账号工作台</h1>
@@ -70,11 +66,7 @@
     <section class="app-topbar">
       <div class="brand-block">
         <div class="brand-icon">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 7h16v12H4Z" />
-            <path d="m4 8 8 6 8-6" />
-            <path d="M7 5h10" />
-          </svg>
+          <img class="brand-icon-image" src="/brand-icon.svg" alt="" aria-hidden="true" />
         </div>
         <div>
           <h1>Microsoft 账号工作台</h1>
