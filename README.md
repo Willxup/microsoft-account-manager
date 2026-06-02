@@ -175,9 +175,10 @@ npm run deploy
 
 - 在账号列表顶部可切换取件模式：`Graph / IMAP`
 - 点击任意账号邮箱，会自动拉取该账号**全部邮件**并弹窗展示
+- 邮箱弹窗内也可切换取件模式，并按当前模式刷新
 - 弹窗左侧邮件列表，右侧邮件正文
 - 每次取件会同步更新该账号状态列
-- 受 Workers 运行环境限制，`IMAP` 模式使用 Outlook OAuth 接口做兼容读取，不是原生 TCP IMAP 直连
+- `IMAP` 模式使用 Worker TCP socket 直连 `outlook.office365.com:993`，并通过 XOAUTH2 认证
 
 状态列含义：
 

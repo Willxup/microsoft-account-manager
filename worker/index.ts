@@ -3,6 +3,7 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
 import type { Context } from 'hono';
+import { readImapMessagesViaSocket } from './imap-client';
 
 type Bindings = {
   DB: D1Database;
@@ -137,7 +138,6 @@ const INGEST_PATH = '/api/upload/ingest';
 const OPEN_MESSAGES_PATH = '/api/open/messages';
 const MICROSOFT_TOKEN_URL = 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token';
 const GRAPH_MESSAGES_URL = 'https://graph.microsoft.com/v1.0/me/messages';
-const OUTLOOK_MESSAGES_URL = 'https://outlook.office.com/api/v2.0/me/messages';
 const GRAPH_SCOPE = 'https://graph.microsoft.com/.default';
 const IMAP_SCOPE = 'https://outlook.office.com/IMAP.AccessAsUser.All offline_access';
 const DEFAULT_REFRESH_CONCURRENCY = 8;
@@ -1635,7 +1635,7 @@ async function fetchAccountMessages(
 
   const fetched =
     mode === 'imap'
-      ? await readImapMessagesViaOutlookApi(tokenResult.accessToken, includeBody)
+      ? await readImapMessagesViaSocket(account.account, tokenResult.accessToken, includeBody)
       : await readGraphMessages(tokenResult.accessToken, includeBody);
   if (!fetched.ok) {
     const message = fetched.error || `${mode.toUpperCase()}取件失败`;
@@ -1789,70 +1789,6 @@ async function readGraphMessages(
   };
 }
 
-async function readImapMessagesViaOutlookApi(
-  accessToken: string,
-  includeBody = false
-): Promise<{ ok: true; messages: AccountMailItem[] } | { ok: false; error: string }> {
-  const select = includeBody
-    ? 'Id,Subject,From,DateTimeReceived,BodyPreview,Body'
-    : 'Id,Subject,From,DateTimeReceived,BodyPreview';
-
-  const firstUrl = new URL(OUTLOOK_MESSAGES_URL);
-  firstUrl.searchParams.set('$top', String(MAIL_PAGE_SIZE));
-  firstUrl.searchParams.set('$orderby', 'DateTimeReceived desc');
-  firstUrl.searchParams.set('$select', select);
-
-  const allMessages: AccountMailItem[] = [];
-  let nextUrl: string | null = firstUrl.toString();
-
-  while (nextUrl) {
-    let response: Response;
-    try {
-      response = await fetch(nextUrl, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
-      });
-    } catch (error) {
-      return {
-        ok: false,
-        error: `IMAP请求异常: ${error instanceof Error ? error.message : 'unknown error'}`
-      };
-    }
-
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      return {
-        ok: false,
-        error: extractMicrosoftError(payload, response.status)
-      };
-    }
-
-    const value = (payload as Record<string, unknown>).value;
-    if (!Array.isArray(value)) {
-      return {
-        ok: false,
-        error: 'IMAP响应格式错误，缺少value数组'
-      };
-    }
-
-    allMessages.push(
-      ...value
-        .filter((item) => !!item && typeof item === 'object')
-        .map((item) => normalizeOutlookMailItem(item as Record<string, unknown>, includeBody))
-    );
-
-    const nextLink = asText((payload as Record<string, unknown>)['@odata.nextLink']).trim();
-    const fallbackNextLink = asText((payload as Record<string, unknown>)['odata.nextLink']).trim();
-    nextUrl = nextLink || fallbackNextLink || null;
-  }
-
-  return {
-    ok: true,
-    messages: allMessages
-  };
-}
-
 function normalizeGraphMailItem(item: Record<string, unknown>, includeBody: boolean): AccountMailItem {
   const fromNode = item.from;
   let from = '';
@@ -1880,38 +1816,6 @@ function normalizeGraphMailItem(item: Record<string, unknown>, includeBody: bool
     from,
     receivedAt: asText(item.receivedDateTime).trim(),
     preview: asText(item.bodyPreview).trim(),
-    contentType,
-    content
-  };
-}
-
-function normalizeOutlookMailItem(item: Record<string, unknown>, includeBody: boolean): AccountMailItem {
-  const fromNode = item.From;
-  let from = '';
-  if (fromNode && typeof fromNode === 'object') {
-    const emailNode = (fromNode as Record<string, unknown>).EmailAddress;
-    if (emailNode && typeof emailNode === 'object') {
-      from = asText((emailNode as Record<string, unknown>).Address).trim();
-    }
-  }
-
-  let contentType = '';
-  let content = '';
-  if (includeBody) {
-    const bodyNode = item.Body;
-    if (bodyNode && typeof bodyNode === 'object') {
-      const bodyRecord = bodyNode as Record<string, unknown>;
-      contentType = asText(bodyRecord.ContentType).trim().toLowerCase();
-      content = asText(bodyRecord.Content).trim();
-    }
-  }
-
-  return {
-    id: asText(item.Id).trim(),
-    subject: asText(item.Subject).trim(),
-    from,
-    receivedAt: asText(item.DateTimeReceived).trim(),
-    preview: asText(item.BodyPreview).trim(),
     contentType,
     content
   };

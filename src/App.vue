@@ -408,6 +408,14 @@
     >
       <template #header-extra>
         <n-space size="small">
+          <n-select
+            v-model:value="mailCurrentMode"
+            size="small"
+            :options="mailModeOptions"
+            style="width: 120px"
+            :disabled="!currentMailAccountRow || mailLoading"
+            @update:value="handleMailModeChange"
+          />
           <n-popover
             trigger="click"
             placement="bottom-end"
@@ -1741,8 +1749,12 @@ async function handleBatchDelete(): Promise<void> {
   }
 }
 
-async function fetchMailMessages(accountId: number, account: string, alias = ''): Promise<void> {
-  const mode = mailFetchMode.value;
+async function fetchMailMessages(
+  accountId: number,
+  account: string,
+  alias = '',
+  mode: MailFetchMode = mailFetchMode.value
+): Promise<void> {
   mailLoading.value = true;
   mailAccount.value = alias || account;
   mailCurrentMode.value = mode;
@@ -1767,7 +1779,7 @@ async function handleOpenMailModal(row: AccountItem, alias = ''): Promise<void> 
   mailVisible.value = true;
   mailCurrentAccountId.value = row.id;
   mailCurrentAlias.value = alias;
-  await fetchMailMessages(row.id, row.account, alias);
+  await fetchMailMessages(row.id, row.account, alias, mailFetchMode.value);
 }
 
 async function handleOpenAliasMailModal(row: AccountItem, aliasEmail: string): Promise<void> {
@@ -1782,7 +1794,17 @@ async function handleRefreshMail(): Promise<void> {
     return;
   }
 
-  await fetchMailMessages(currentRow.id, currentRow.account, mailCurrentAlias.value);
+  await fetchMailMessages(currentRow.id, currentRow.account, mailCurrentAlias.value, mailCurrentMode.value);
+}
+
+async function handleMailModeChange(mode: MailFetchMode): Promise<void> {
+  const currentRow = currentMailAccountRow.value;
+  if (!currentRow) {
+    return;
+  }
+
+  mailFetchMode.value = mode;
+  await fetchMailMessages(currentRow.id, currentRow.account, mailCurrentAlias.value, mode);
 }
 
 function handleMailModalAfterLeave(): void {
