@@ -39,7 +39,7 @@ export async function readImapMessagesViaSocket(
         for (const uidChunk of chunk(uids, IMAP_FETCH_CHUNK_SIZE)) {
           const bodyClause = includeBody ? ` BODY.PEEK[TEXT]<0.${IMAP_BODY_PREVIEW_BYTES}>` : '';
           const fetchResponse = await session.command(
-            `UID FETCH ${uidChunk.join(',')} (UID INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)]${bodyClause})`
+            `UID FETCH ${uidChunk.join(',')} (UID INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE CONTENT-TYPE CONTENT-TRANSFER-ENCODING)]${bodyClause})`
           );
           messages.push(...parseImapFetchResponse(fetchResponse, folder, includeBody));
         }

@@ -40,12 +40,12 @@ export function parseImapFetchResponse(
     }
 
     const headers = parseHeaders(extractHeaderLiteral(block));
-    const body = includeBody ? extractBodyLiteral(block).trim() : '';
+    const body = includeBody ? normalizeMailBody(extractBodyLiteral(block), headers) : { content: '', contentType: 'text' };
     const subject = decodeMimeHeader(headers.get('subject') ?? '');
     const from = normalizeFromAddress(headers.get('from') ?? '');
     const receivedAt = normalizeMailDate(headers.get('date') ?? '', extractInternalDate(block));
-    const contentType = body && looksLikeHtml(body) ? 'html' : 'text';
-    const preview = buildPreview(body);
+    const contentType = body.contentType === 'html' || looksLikeHtml(body.content) ? 'html' : 'text';
+    const preview = buildPreview(body.content);
 
     messages.push({
       id: `imap:${folder}:${uid}`,
@@ -54,7 +54,7 @@ export function parseImapFetchResponse(
       receivedAt,
       preview,
       contentType,
-      content: body
+      content: body.content
     });
   }
 
@@ -83,7 +83,7 @@ function extractHeaderLiteral(block: string): string {
 }
 
 function extractBodyLiteral(block: string): string {
-  const match = block.match(/BODY(?:\.PEEK)?\[TEXT\](?:<\d+>)?\s*\{\d+\}\r?\n([\s\S]*?)(?=\r?\n\))/i);
+  const match = block.match(/BODY(?:\.PEEK)?\[TEXT\](?:<\d+(?:\.\d+)?>)?\s*\{\d+\}\r?\n([\s\S]*?)(?=\r?\n\))/i);
   return match?.[1] ?? '';
 }
 
@@ -115,6 +115,102 @@ function parseHeaders(raw: string): Map<string, string> {
   }
 
   return headers;
+}
+
+function normalizeMailBody(rawBody: string, headers: Map<string, string>): { content: string; contentType: 'html' | 'text' } {
+  const contentType = headers.get('content-type') ?? '';
+  const boundary = parseContentTypeParam(contentType, 'boundary');
+  if (/multipart\//i.test(contentType) && boundary) {
+    const selectedPart = selectTextMimePart(rawBody, boundary);
+    if (selectedPart) {
+      return selectedPart;
+    }
+  }
+
+  const decoded = decodeMimeBody(
+    rawBody,
+    headers.get('content-transfer-encoding') ?? '',
+    parseContentTypeParam(contentType, 'charset') || 'utf-8'
+  );
+
+  return {
+    content: decoded.trim(),
+    contentType: /text\/html/i.test(contentType) || looksLikeHtml(decoded) ? 'html' : 'text'
+  };
+}
+
+function selectTextMimePart(rawBody: string, boundary: string): { content: string; contentType: 'html' | 'text' } | null {
+  const parts = splitMimeParts(rawBody, boundary);
+  const parsedParts = parts
+    .map((part) => {
+      const parsed = parseMimePart(part);
+      if (!parsed) {
+        return null;
+      }
+
+      const contentType = parsed.headers.get('content-type') ?? '';
+      if (!/text\/(?:plain|html)/i.test(contentType)) {
+        return null;
+      }
+
+      const decoded = decodeMimeBody(
+        parsed.body,
+        parsed.headers.get('content-transfer-encoding') ?? '',
+        parseContentTypeParam(contentType, 'charset') || 'utf-8'
+      ).trim();
+
+      if (!decoded) {
+        return null;
+      }
+
+      return {
+        content: decoded,
+        contentType: /text\/html/i.test(contentType) ? 'html' as const : 'text' as const
+      };
+    })
+    .filter((part): part is { content: string; contentType: 'html' | 'text' } => part !== null);
+
+  return parsedParts.find((part) => part.contentType === 'text') ?? parsedParts[0] ?? null;
+}
+
+function splitMimeParts(rawBody: string, boundary: string): string[] {
+  const normalized = rawBody.replace(/\r\n/g, '\n');
+  return normalized
+    .split(`--${boundary}`)
+    .slice(1)
+    .map((part) => part.replace(/^\n/, ''))
+    .filter((part) => part.trim() && !part.trimStart().startsWith('--'));
+}
+
+function parseMimePart(rawPart: string): { headers: Map<string, string>; body: string } | null {
+  const separator = rawPart.search(/\n\s*\n/);
+  if (separator === -1) {
+    return null;
+  }
+
+  const headerText = rawPart.slice(0, separator);
+  const body = rawPart.slice(separator).replace(/^\n\s*\n?/, '');
+  return {
+    headers: parseHeaders(headerText),
+    body
+  };
+}
+
+function parseContentTypeParam(value: string, key: string): string {
+  const pattern = new RegExp(`${key}\\s*=\\s*(?:"([^"]+)"|([^;\\s]+))`, 'i');
+  const match = value.match(pattern);
+  return (match?.[1] ?? match?.[2] ?? '').trim();
+}
+
+function decodeMimeBody(rawBody: string, transferEncoding: string, charset: string): string {
+  const encoding = transferEncoding.trim().toLowerCase();
+  if (encoding === 'base64') {
+    return decodeBytes(decodeBase64Bytes(rawBody), charset);
+  }
+  if (encoding === 'quoted-printable') {
+    return decodeBytes(decodeQuotedPrintableBodyBytes(rawBody), charset);
+  }
+  return rawBody.trim();
 }
 
 function normalizeFromAddress(value: string): string {
@@ -201,6 +297,20 @@ function decodeBase64Bytes(value: string): Uint8Array {
 function decodeQuotedPrintableBytes(value: string): Uint8Array {
   const bytes: number[] = [];
   const input = value.replace(/_/g, ' ');
+  for (let index = 0; index < input.length; index += 1) {
+    if (input[index] === '=' && /^[0-9a-fA-F]{2}$/.test(input.slice(index + 1, index + 3))) {
+      bytes.push(Number.parseInt(input.slice(index + 1, index + 3), 16));
+      index += 2;
+    } else {
+      bytes.push(input.charCodeAt(index));
+    }
+  }
+  return new Uint8Array(bytes);
+}
+
+function decodeQuotedPrintableBodyBytes(value: string): Uint8Array {
+  const bytes: number[] = [];
+  const input = value.replace(/=\r?\n/g, '');
   for (let index = 0; index < input.length; index += 1) {
     if (input[index] === '=' && /^[0-9a-fA-F]{2}$/.test(input.slice(index + 1, index + 3))) {
       bytes.push(Number.parseInt(input.slice(index + 1, index + 3), 16));

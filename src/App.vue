@@ -31,19 +31,316 @@
     </n-card>
   </div>
 
-  <div v-else class="page">
-    <section class="hero">
-      <div>
-        <p class="hero-badge">Cloudflare Worker + D1</p>
-        <h1>账号管理与上传中心</h1>
-        <p>支持外部系统直接上传账号到本服务，并在后台统一管理。</p>
+  <div v-else class="page app-page">
+    <section class="app-topbar">
+      <div class="brand-block">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h16v12H4Z" />
+            <path d="m4 8 8 6 8-6" />
+            <path d="M7 5h10" />
+          </svg>
+        </div>
+        <div>
+          <h1>Microsoft 账号工作台</h1>
+          <p>Graph / IMAP 取件 · 账号管理</p>
+        </div>
       </div>
-      <n-space align="center" class="hero-actions">
-        <n-tag type="success" size="small">已登录：{{ currentUser }}</n-tag>
-        <n-button quaternary :loading="logoutLoading" @click="handleLogout">退出登录</n-button>
-      </n-space>
+      <div class="topbar-actions">
+        <div class="mode-switch" role="tablist" aria-label="界面模式">
+          <button
+            class="mode-switch-button"
+            :class="{ 'mode-switch-button-active': viewMode === 'workbench' }"
+            type="button"
+            @click="viewMode = 'workbench'"
+          >
+            工作台
+          </button>
+          <button
+            class="mode-switch-button"
+            :class="{ 'mode-switch-button-active': viewMode === 'classic' }"
+            type="button"
+            @click="viewMode = 'classic'"
+          >
+            经典后台
+          </button>
+        </div>
+        <span class="session-pill">
+          <span class="session-dot"></span>
+          已登录：{{ currentUser }}
+        </span>
+        <n-button class="topbar-logout" quaternary :loading="logoutLoading" @click="handleLogout">退出登录</n-button>
+      </div>
     </section>
 
+    <input
+      ref="txtFileInputRef"
+      class="hidden-file-input"
+      type="file"
+      accept=".txt,text/plain"
+      @change="handleTxtFileChange"
+    />
+
+    <section v-show="viewMode === 'workbench'" class="workbench-shell">
+      <aside class="account-sidebar">
+        <div class="sidebar-heading">
+          <div class="sidebar-title">
+            <span class="sidebar-title-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 6h13" />
+                <path d="M8 12h13" />
+                <path d="M8 18h13" />
+                <path d="M3 6h.01" />
+                <path d="M3 12h.01" />
+                <path d="M3 18h.01" />
+              </svg>
+            </span>
+            <span>邮箱列表</span>
+          </div>
+          <span class="sidebar-count">{{ workbenchFilteredAccounts.length }}</span>
+        </div>
+
+        <n-input
+          v-model:value="searchKeyword"
+          clearable
+          class="workbench-input sidebar-search"
+          placeholder="搜索邮箱 / 备注"
+        />
+
+        <div class="sidebar-toolbar">
+          <button class="workbench-action workbench-action-primary sidebar-primary-action" type="button" :disabled="importLoading" @click="openImportModal">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5v14" />
+              <path d="M5 12h14" />
+            </svg>
+            <span>批量导入</span>
+          </button>
+          <n-popover
+            trigger="click"
+            placement="bottom-end"
+            :show="exportPopoverVisible"
+            :width="112"
+            @update:show="exportPopoverVisible = $event"
+          >
+            <template #trigger>
+              <button class="workbench-icon-button" type="button" title="导出邮箱" @click.stop>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3v10m0 0 4-4m-4 4-4-4" />
+                  <path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" />
+                </svg>
+              </button>
+            </template>
+            <div class="workbench-popover-menu">
+              <button class="workbench-menu-item" type="button" @click.stop="handleExportAccounts(false)">
+                导出勾选
+              </button>
+              <button class="workbench-menu-item" type="button" @click.stop="handleExportAccounts(true)">
+                导出全部
+              </button>
+            </div>
+          </n-popover>
+          <button class="workbench-icon-button" type="button" title="刷新列表" :disabled="tableLoading" @click="loadAccounts">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 6v5h-5" />
+              <path d="M4 18v-5h5" />
+              <path d="M18 10a6.5 6.5 0 0 0-11-3L4 10" />
+              <path d="M6 14a6.5 6.5 0 0 0 11 3l3-3" />
+            </svg>
+          </button>
+          <button class="workbench-icon-button" type="button" title="选择当前页" @click="handleWorkbenchToggleCurrentPage(!isWorkbenchPageAllChecked)">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 5a2 2 0 0 1 2-2h9" />
+              <path d="M4 19a2 2 0 0 0 2 2h9" />
+              <path d="M4 9v6" />
+              <path d="m15 12 2 2 5-6" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="sidebar-select-line">
+          <n-checkbox
+            :checked="isWorkbenchPageAllChecked"
+            :indeterminate="isWorkbenchPagePartiallyChecked"
+            @update:checked="handleWorkbenchToggleCurrentPage"
+          >
+            全选当前页
+          </n-checkbox>
+          <button class="sidebar-clear-button" type="button" @click="checkedRowKeys = []">
+            清空选择
+          </button>
+        </div>
+
+        <n-spin :show="tableLoading">
+          <div v-if="workbenchAccounts.length === 0" class="sidebar-empty">
+            <n-empty description="暂无邮箱" size="small" />
+          </div>
+          <div v-else class="account-list">
+            <article
+              v-for="row in workbenchAccounts"
+              :key="row.id"
+              class="account-list-item"
+              :class="{ 'account-list-item-selected': isAccountChecked(row.id) }"
+              @click="handleWorkbenchRowCardClick(row.id)"
+            >
+              <n-checkbox
+                :checked="isAccountChecked(row.id)"
+                @click.stop
+                @update:checked="handleWorkbenchRowChecked(row.id, $event)"
+              />
+              <div class="account-main">
+                <span class="account-email">{{ row.account }}</span>
+                <span class="account-meta">{{ resolveWorkbenchMeta(row) }}</span>
+                <span class="account-remark">{{ resolveWorkbenchRemark(row) }}</span>
+              </div>
+              <div class="account-row-actions">
+                <button class="icon-action" type="button" title="复制邮箱" @click.stop="handleCopyAccountField(row, 'account')">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 8h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                </button>
+                <button class="icon-action" type="button" title="编辑账号" @click.stop="openEditModal(row)">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" />
+                  </svg>
+                </button>
+                <button class="icon-action icon-action-danger" type="button" title="删除账号" @click.stop="handleDeleteAccount(row.id)">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 7h16" />
+                    <path d="M10 11v6" />
+                    <path d="M14 11v6" />
+                    <path d="M6 7l1 14h10l1-14" />
+                    <path d="M9 7V4h6v3" />
+                  </svg>
+                </button>
+              </div>
+            </article>
+          </div>
+        </n-spin>
+
+        <div class="sidebar-pagination">
+          <button class="workbench-page-button" type="button" :disabled="workbenchPagination.page <= 1" @click="handleWorkbenchPageChange(workbenchPagination.page - 1)">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+          </button>
+          <span class="sidebar-page-text">第 {{ workbenchPagination.page }} / {{ workbenchPagination.pageCount }} 页</span>
+          <n-select
+            :value="workbenchPageSize"
+            size="small"
+            class="workbench-select sidebar-page-size"
+            :options="workbenchPageSizeOptions"
+            @update:value="handleWorkbenchPageSizeChange"
+          />
+          <button class="workbench-page-button" type="button" :disabled="workbenchPagination.page >= workbenchPagination.pageCount" @click="handleWorkbenchPageChange(workbenchPagination.page + 1)">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </button>
+        </div>
+      </aside>
+
+      <main class="mail-workspace">
+        <section class="mail-toolbar-panel">
+          <div class="mail-filter-grid">
+            <n-input v-model:value="workbenchMailKeyword" clearable class="workbench-input" placeholder="搜索关键词（主题/正文）" />
+            <n-input v-model:value="workbenchMailSender" clearable class="workbench-input" placeholder="发件人过滤（可选）" />
+            <n-select v-model:value="workbenchMailLimit" class="workbench-select" :options="mailLimitOptions" />
+          </div>
+          <div class="mail-action-row">
+            <div class="protocol-switch" aria-label="取件协议">
+              <button
+                type="button"
+                :class="{ 'protocol-button-active': mailFetchMode === 'imap' }"
+                @click="mailFetchMode = 'imap'"
+              >
+                IMAP
+              </button>
+              <button
+                type="button"
+                :class="{ 'protocol-button-active': mailFetchMode === 'graph' }"
+                @click="mailFetchMode = 'graph'"
+              >
+                Graph
+              </button>
+            </div>
+            <div class="mail-action-buttons">
+              <button
+                class="workbench-fetch-button workbench-fetch-button-selected"
+                type="button"
+                :disabled="checkedRowKeys.length === 0 || workbenchMailLoading"
+                @click="handleWorkbenchFetchSelected"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3v10m0 0 4-4m-4 4-4-4" />
+                  <path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" />
+                </svg>
+                <span>{{ workbenchMailLoading ? '取件中' : '选中取件' }}</span>
+              </button>
+              <button class="workbench-fetch-button workbench-fetch-button-all" type="button" :disabled="workbenchMailLoading" @click="handleWorkbenchFetchAll">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3v10m0 0 4-4m-4 4-4-4" />
+                  <path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" />
+                </svg>
+                <span>{{ workbenchMailLoading ? '取件中' : '全部取件' }}</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="mail-result-panel" :class="{ 'mail-result-panel-loading': workbenchMailLoading }">
+          <div v-if="workbenchMailLoading" class="workbench-loading-layer">
+            <span class="workbench-spinner"></span>
+            <span>正在取件</span>
+          </div>
+          <div class="mail-result-content">
+            <div v-if="workbenchMailResults.length === 0" class="workbench-empty-state">
+              <div class="empty-mail-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 6h16v13H4Z" />
+                  <path d="m4 7 8 6 8-6" />
+                  <path d="M9 17h6" />
+                </svg>
+              </div>
+              <p>在左侧选择邮箱，然后点击取件</p>
+              <span>支持 IMAP OAuth2 + Graph API 双协议取件，结果会显示在这里。</span>
+            </div>
+            <div v-else class="workbench-result-list">
+              <article
+                v-for="result in displayedWorkbenchMailResults"
+                :key="`${result.accountId}-${result.mode}`"
+                class="workbench-result-card"
+                :class="{ 'workbench-result-card-error': !result.ok }"
+              >
+                <div class="result-card-header">
+                  <div>
+                    <h3>{{ result.account }}</h3>
+                    <p>{{ result.mode.toUpperCase() }} · {{ result.ok ? `${result.messages.length} 封` : result.error }}</p>
+                  </div>
+                </div>
+                <div v-if="result.ok && result.messages.length > 0" class="result-message-list">
+                  <button
+                    v-for="item in result.messages"
+                    :key="item.id"
+                    class="result-message-item"
+                    type="button"
+                    @click="openWorkbenchMailDetail(result, item)"
+                  >
+                    <strong>{{ item.subject || '(无主题)' }}</strong>
+                    <span>{{ item.from || '-' }}</span>
+                    <small>{{ formatMailDate(item.receivedAt) }}</small>
+                  </button>
+                </div>
+                <p v-else-if="result.ok" class="result-empty-text">没有匹配当前过滤条件的邮件。</p>
+              </article>
+            </div>
+          </div>
+        </section>
+      </main>
+    </section>
+
+    <div v-show="viewMode === 'classic'" class="classic-shell">
     <n-tabs v-model:value="activeTab" type="segment" animated>
       <n-tab-pane name="accounts" tab="账号管理">
         <n-space vertical size="large">
@@ -98,13 +395,6 @@
               <n-space justify="space-between" align="center" wrap>
                 <span class="hint">支持手动输入或 TXT 文件导入，空行会自动忽略。</span>
                 <n-space>
-                  <input
-                    ref="txtFileInputRef"
-                    class="hidden-file-input"
-                    type="file"
-                    accept=".txt,text/plain"
-                    @change="handleTxtFileChange"
-                  />
                   <n-button secondary :loading="importLoading" @click="triggerTxtImport">
                     导入 TXT
                   </n-button>
@@ -332,41 +622,110 @@
         </n-space>
       </n-tab-pane>
     </n-tabs>
+    </div>
 
-    <n-modal v-model:show="editVisible" preset="card" title="编辑账号" style="max-width: 760px">
+    <div
+      v-if="selectedWorkbenchMailDetail"
+      class="workbench-detail-overlay"
+      role="dialog"
+      aria-modal="true"
+      @click.self="closeWorkbenchMailDetail"
+    >
+      <section class="workbench-detail-panel">
+        <header class="workbench-detail-header">
+          <div>
+            <span class="workbench-detail-kicker">{{ selectedWorkbenchMailDetail.modeLabel }} 邮件详情</span>
+            <h2>{{ selectedWorkbenchMailDetail.subject }}</h2>
+          </div>
+          <button class="workbench-detail-close" type="button" title="关闭详情" @click="closeWorkbenchMailDetail">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </header>
+
+        <div class="workbench-detail-meta">
+          <span>{{ selectedWorkbenchMailDetail.account }}</span>
+          <span>{{ selectedWorkbenchMailDetail.from }}</span>
+          <span>{{ formatMailDate(selectedWorkbenchMailDetail.receivedAt) }}</span>
+          <span>{{ selectedWorkbenchMailDetail.contentKind === 'html' ? 'HTML 正文' : '文本正文' }}</span>
+        </div>
+
+        <div class="workbench-detail-body">
+          <iframe
+            v-if="selectedWorkbenchMailDetail.contentKind === 'html'"
+            class="workbench-detail-frame"
+            title="邮件 HTML 正文"
+            sandbox=""
+            referrerpolicy="no-referrer"
+            :srcdoc="selectedWorkbenchMailDetail.content"
+          />
+          <pre v-else class="workbench-detail-text">{{ selectedWorkbenchMailDetail.content }}</pre>
+        </div>
+      </section>
+    </div>
+
+    <n-modal v-model:show="editVisible" preset="card" class="workbench-modal" title="编辑账号" style="max-width: 760px">
       <n-form label-placement="top">
         <n-grid :x-gap="12" :y-gap="12" :cols="24">
           <n-gi :span="12">
             <n-form-item label="账号">
-              <n-input v-model:value="editForm.account" />
+              <n-input v-model:value="editForm.account" class="workbench-input" />
             </n-form-item>
           </n-gi>
           <n-gi :span="12">
             <n-form-item label="密码">
-              <n-input v-model:value="editForm.password" type="password" show-password-on="click" />
+              <n-input v-model:value="editForm.password" class="workbench-input" type="password" show-password-on="click" />
             </n-form-item>
           </n-gi>
           <n-gi :span="12">
             <n-form-item label="Client ID">
-              <n-input v-model:value="editForm.clientId" />
+              <n-input v-model:value="editForm.clientId" class="workbench-input" />
             </n-form-item>
           </n-gi>
           <n-gi :span="12">
             <n-form-item label="Refresh Token">
-              <n-input v-model:value="editForm.refreshToken" />
+              <n-input v-model:value="editForm.refreshToken" class="workbench-input" />
             </n-form-item>
           </n-gi>
           <n-gi :span="24">
             <n-form-item label="备注">
-              <n-input v-model:value="editForm.remark" />
+              <n-input v-model:value="editForm.remark" class="workbench-input" />
             </n-form-item>
           </n-gi>
         </n-grid>
       </n-form>
       <template #footer>
         <n-space justify="end">
-          <n-button @click="editVisible = false">取消</n-button>
-          <n-button type="primary" :loading="editLoading" @click="handleUpdateAccount">保存修改</n-button>
+          <button class="workbench-action workbench-action-secondary" type="button" @click="editVisible = false">取消</button>
+          <button class="workbench-action workbench-action-primary" type="button" :disabled="editLoading" @click="handleUpdateAccount">
+            {{ editLoading ? '保存中' : '保存修改' }}
+          </button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <n-modal v-model:show="importVisible" preset="card" class="workbench-modal" title="批量导入邮箱" style="max-width: 720px">
+      <n-space vertical size="small">
+        <p class="hint">每行一个账号：账号----密码 或 账号----密码----client_id----refresh_token</p>
+        <n-input
+          v-model:value="importText"
+          type="textarea"
+          class="workbench-input"
+          :autosize="{ minRows: 7, maxRows: 12 }"
+          placeholder="account@hotmail.com----password----client_id----refresh_token"
+        />
+      </n-space>
+      <template #footer>
+        <n-space justify="space-between" align="center" wrap>
+          <span class="hint">也可以直接选择 TXT 文件导入。</span>
+          <n-space>
+            <button class="workbench-action workbench-action-secondary" type="button" :disabled="importLoading" @click="triggerTxtImport">导入 TXT</button>
+            <button class="workbench-action workbench-action-primary" type="button" :disabled="importLoading" @click="handleImport">
+              {{ importLoading ? '导入中' : '导入文本' }}
+            </button>
+          </n-space>
         </n-space>
       </template>
     </n-modal>
@@ -503,7 +862,7 @@
       </div>
     </n-modal>
 
-    <footer class="page-footer">
+    <footer v-if="viewMode === 'classic'" class="page-footer">
       <span class="footer-content">
         Copyright © 2026
         <a href="https://github.com/Msg-Lbo" target="_blank" rel="noopener noreferrer">Msg-Lbo</a>
@@ -517,7 +876,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref } from 'vue';
+import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import {
   NButton,
   NCard,
@@ -551,8 +910,29 @@ import type {
   IngestConfig,
   MailFetchMode
 } from './types';
+import {
+  DEFAULT_WORKBENCH_PAGE_SIZE,
+  WORKBENCH_PAGE_SIZE_OPTIONS,
+  buildWorkbenchMailDetail,
+  clampWorkbenchPageSize,
+  filterWorkbenchAccounts,
+  filterWorkbenchMailItems,
+  formatWorkbenchAccountMeta,
+  paginateWorkbenchAccounts,
+  toggleWorkbenchSelectedId
+} from './workbench';
+import type { WorkbenchMailDetail } from './workbench';
 
 const { message } = createDiscreteApi(['message']);
+
+interface WorkbenchMailResult {
+  accountId: number;
+  account: string;
+  mode: MailFetchMode;
+  ok: boolean;
+  messages: AccountMailItem[];
+  error?: string;
+}
 
 const authLoading = ref(true);
 const loginLoading = ref(false);
@@ -567,11 +947,18 @@ const loginForm = reactive({
 });
 
 const activeTab = ref<'accounts' | 'ingest' | 'api-docs'>('accounts');
+const viewMode = ref<'workbench' | 'classic'>('workbench');
 
 const accounts = ref<AccountItem[]>([]);
 const searchKeyword = ref('');
 const checkedRowKeys = ref<number[]>([]);
 const tablePageSize = ref<number>(20);
+const workbenchPage = ref(1);
+const workbenchPageSize = ref<number>(DEFAULT_WORKBENCH_PAGE_SIZE);
+const workbenchMailKeyword = ref('');
+const workbenchMailSender = ref('');
+const workbenchMailLimit = ref(10);
+const workbenchMailLoading = ref(false);
 const aliasLimit = 5;
 const aliasByAccountId = reactive<Record<number, AccountAliasItem[]>>({});
 const aliasLoadingByAccountId = reactive<Record<number, boolean>>({});
@@ -590,6 +977,8 @@ const selectedMailId = ref('');
 const mailCurrentAccountId = ref<number | null>(null);
 const mailCurrentAlias = ref('');
 const mailCopyPopoverVisible = ref(false);
+const workbenchMailResults = ref<WorkbenchMailResult[]>([]);
+const selectedWorkbenchMailDetail = ref<WorkbenchMailDetail | null>(null);
 
 const aliasGenerateVisible = ref(false);
 const aliasGenerateLoading = ref(false);
@@ -607,6 +996,7 @@ const syncLoading = ref(false);
 const batchDeleteLoading = ref(false);
 
 const importText = ref('');
+const importVisible = ref(false);
 const txtFileInputRef = ref<HTMLInputElement | null>(null);
 
 const createForm = reactive<Required<AccountPayload>>({
@@ -835,6 +1225,53 @@ const tablePagination = computed(() => ({
   }
 }));
 
+const workbenchPageSizeOptions = WORKBENCH_PAGE_SIZE_OPTIONS.map((size) => ({
+  label: `每页 ${size}`,
+  value: size
+}));
+
+const mailLimitOptions = [10, 20, 50, 100].map((size) => ({
+  label: `${size} 封`,
+  value: size
+}));
+
+const workbenchFilteredAccounts = computed(() =>
+  filterWorkbenchAccounts(accounts.value, searchKeyword.value)
+);
+
+const workbenchPagination = computed(() =>
+  paginateWorkbenchAccounts(workbenchFilteredAccounts.value, workbenchPage.value, workbenchPageSize.value)
+);
+
+const workbenchAccounts = computed(() => workbenchPagination.value.items);
+
+const selectedWorkbenchRows = computed(() => {
+  const selectedIds = new Set(checkedRowKeys.value);
+  return accounts.value.filter((item) => selectedIds.has(item.id));
+});
+
+const isWorkbenchPageAllChecked = computed(() => {
+  return workbenchAccounts.value.length > 0 && workbenchAccounts.value.every((item) => checkedRowKeys.value.includes(item.id));
+});
+
+const isWorkbenchPagePartiallyChecked = computed(() => {
+  const selectedCount = workbenchAccounts.value.filter((item) => checkedRowKeys.value.includes(item.id)).length;
+  return selectedCount > 0 && selectedCount < workbenchAccounts.value.length;
+});
+
+const displayedWorkbenchMailResults = computed<WorkbenchMailResult[]>(() =>
+  workbenchMailResults.value.map((result) => ({
+    ...result,
+    messages: result.ok
+      ? filterWorkbenchMailItems(result.messages, {
+          keyword: workbenchMailKeyword.value,
+          sender: workbenchMailSender.value,
+          limit: workbenchMailLimit.value
+        })
+      : result.messages
+  }))
+);
+
 const selectedMail = computed(() => {
   return mailItems.value.find((item) => item.id === selectedMailId.value) ?? null;
 });
@@ -862,6 +1299,21 @@ const mailModeOptions: Array<{ label: string; value: MailFetchMode }> = [
   { label: 'Graph', value: 'graph' },
   { label: 'IMAP', value: 'imap' }
 ];
+
+watch(searchKeyword, () => {
+  workbenchPage.value = 1;
+});
+
+watch(workbenchPageSize, (size) => {
+  workbenchPageSize.value = clampWorkbenchPageSize(size);
+  workbenchPage.value = 1;
+});
+
+watch(workbenchPagination, (pagination) => {
+  if (workbenchPage.value !== pagination.page) {
+    workbenchPage.value = pagination.page;
+  }
+});
 
 const mailCurrentModeLabel = computed(() => (mailCurrentMode.value === 'imap' ? 'IMAP' : 'Graph'));
 
@@ -1020,6 +1472,16 @@ function clearSessionState(): void {
   selectedMailId.value = '';
   mailCurrentAccountId.value = null;
   mailCurrentAlias.value = '';
+  viewMode.value = 'workbench';
+  workbenchPage.value = 1;
+  workbenchPageSize.value = DEFAULT_WORKBENCH_PAGE_SIZE;
+  workbenchMailKeyword.value = '';
+  workbenchMailSender.value = '';
+  workbenchMailLimit.value = 10;
+  workbenchMailLoading.value = false;
+  workbenchMailResults.value = [];
+  selectedWorkbenchMailDetail.value = null;
+  importVisible.value = false;
   editVisible.value = false;
   aliasGenerateVisible.value = false;
   aliasGenerateLoading.value = false;
@@ -1045,6 +1507,70 @@ function handleCheckedRowKeysUpdate(keys: Array<number | string>): void {
   checkedRowKeys.value = keys
     .map((value) => Number(value))
     .filter((value) => Number.isInteger(value) && value > 0);
+}
+
+function isAccountChecked(id: number): boolean {
+  return checkedRowKeys.value.includes(id);
+}
+
+function handleWorkbenchRowChecked(id: number, checked: boolean): void {
+  if (checked) {
+    if (!checkedRowKeys.value.includes(id)) {
+      checkedRowKeys.value = [...checkedRowKeys.value, id];
+    }
+    return;
+  }
+
+  checkedRowKeys.value = checkedRowKeys.value.filter((value) => value !== id);
+}
+
+function handleWorkbenchRowCardClick(id: number): void {
+  checkedRowKeys.value = toggleWorkbenchSelectedId(checkedRowKeys.value, id);
+}
+
+function handleWorkbenchToggleCurrentPage(checked: boolean): void {
+  const pageIds = workbenchAccounts.value.map((item) => item.id);
+  if (checked) {
+    checkedRowKeys.value = Array.from(new Set([...checkedRowKeys.value, ...pageIds]));
+    return;
+  }
+
+  const currentPageIds = new Set(pageIds);
+  checkedRowKeys.value = checkedRowKeys.value.filter((id) => !currentPageIds.has(id));
+}
+
+function handleWorkbenchPageChange(page: number): void {
+  workbenchPage.value = page;
+}
+
+function handleWorkbenchPageSizeChange(pageSize: number): void {
+  workbenchPageSize.value = clampWorkbenchPageSize(pageSize);
+}
+
+function resolveWorkbenchRemark(row: AccountItem): string {
+  const remark = row.remark?.trim();
+  return remark ? `备注：${remark}` : '备注：暂无';
+}
+
+function resolveWorkbenchMeta(row: AccountItem): string {
+  const aliasStats = getAliasStats(row);
+  return formatWorkbenchAccountMeta({
+    aliasRegistered: aliasStats.registered,
+    aliasTotal: aliasStats.total,
+    fetchedCount: row.fetchedCount
+  });
+}
+
+function openWorkbenchMailDetail(result: WorkbenchMailResult, item: AccountMailItem): void {
+  selectedWorkbenchMailDetail.value = buildWorkbenchMailDetail({
+    account: result.account,
+    mode: result.mode,
+    item
+  });
+}
+
+function closeWorkbenchMailDetail(): void {
+  selectedWorkbenchMailDetail.value = null;
 }
 
 function getTargetAccountIds(all: boolean): number[] {
@@ -1620,6 +2146,10 @@ async function handleDeleteAccount(id: number): Promise<void> {
   }
 }
 
+function openImportModal(): void {
+  importVisible.value = true;
+}
+
 function triggerTxtImport(): void {
   txtFileInputRef.value?.click();
 }
@@ -1633,17 +2163,20 @@ async function handleTxtFileChange(event: Event): Promise<void> {
 
   try {
     const text = await file.text();
-    await importAccountsText(text, `TXT 文件 ${file.name}`);
+    const imported = await importAccountsText(text, `TXT 文件 ${file.name}`);
+    if (imported) {
+      importVisible.value = false;
+    }
   } finally {
     input.value = '';
   }
 }
 
-async function importAccountsText(rawText: string, sourceLabel: string): Promise<void> {
+async function importAccountsText(rawText: string, sourceLabel: string): Promise<boolean> {
   const text = rawText.trim();
   if (!text) {
     message.warning(`${sourceLabel} 内容为空`);
-    return;
+    return false;
   }
 
   importLoading.value = true;
@@ -1655,15 +2188,20 @@ async function importAccountsText(rawText: string, sourceLabel: string): Promise
     if (result.errors.length > 0) {
       message.warning(`有 ${result.errors.length} 行格式错误，已跳过`);
     }
+    return true;
   } catch (error) {
     handleApiError(error);
+    return false;
   } finally {
     importLoading.value = false;
   }
 }
 
 async function handleImport(): Promise<void> {
-  await importAccountsText(importText.value, '文本内容');
+  const imported = await importAccountsText(importText.value, '文本内容');
+  if (imported) {
+    importVisible.value = false;
+  }
 }
 
 function handleExportAccounts(all: boolean): void {
@@ -1705,6 +2243,67 @@ async function handleRefreshAccounts(all: boolean): Promise<void> {
   } finally {
     syncLoading.value = false;
   }
+}
+
+async function fetchWorkbenchMailForRows(rows: AccountItem[]): Promise<void> {
+  if (rows.length === 0) {
+    message.warning('没有可取件的邮箱');
+    return;
+  }
+
+  workbenchMailLoading.value = true;
+  workbenchMailResults.value = [];
+  selectedWorkbenchMailDetail.value = null;
+  const results: WorkbenchMailResult[] = [];
+
+  try {
+    for (const row of rows) {
+      try {
+        const response = await api.getAccountMessages(row.id, mailFetchMode.value);
+        results.push({
+          accountId: row.id,
+          account: response.account,
+          mode: response.mode,
+          ok: true,
+          messages: response.messages
+        });
+      } catch (error) {
+        if (error instanceof UnauthorizedError) {
+          handleApiError(error);
+          break;
+        }
+
+        results.push({
+          accountId: row.id,
+          account: row.account,
+          mode: mailFetchMode.value,
+          ok: false,
+          messages: [],
+          error: getErrorMessage(error)
+        });
+      }
+
+      workbenchMailResults.value = [...results];
+    }
+
+    await loadAccounts();
+    const failed = results.filter((item) => !item.ok).length;
+    if (failed === 0) {
+      message.success(`取件完成：${results.length} 个邮箱`);
+    } else {
+      message.warning(`取件完成：成功 ${results.length - failed}，失败 ${failed}`);
+    }
+  } finally {
+    workbenchMailLoading.value = false;
+  }
+}
+
+async function handleWorkbenchFetchSelected(): Promise<void> {
+  await fetchWorkbenchMailForRows(selectedWorkbenchRows.value);
+}
+
+async function handleWorkbenchFetchAll(): Promise<void> {
+  await fetchWorkbenchMailForRows(workbenchFilteredAccounts.value);
 }
 
 function handleSelectAll(): void {
