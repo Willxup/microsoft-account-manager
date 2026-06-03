@@ -446,6 +446,7 @@ body {
   background: var(--panel);
   box-shadow: var(--card-shadow);
   backdrop-filter: blur(18px);
+  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
 }
 
 .account-sidebar {
@@ -733,6 +734,8 @@ body {
   overflow-y: scroll;
   overflow-x: hidden;
   overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
   padding-right: 2px;
   padding-bottom: 18px;
   scroll-padding-bottom: 18px;
@@ -784,7 +787,8 @@ body {
   border: 1px solid #dfebf8;
   border-radius: 12px;
   background: rgba(248, 251, 255, 0.86);
-  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+  contain: layout paint;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
 }
 
 .account-list-item > .n-checkbox {
@@ -795,6 +799,7 @@ body {
 
 .account-list-item:hover {
   border-color: #c6dcf7;
+  box-shadow: 0 8px 18px rgba(74, 103, 137, 0.08);
   transform: translateY(-1px);
 }
 
@@ -1000,6 +1005,8 @@ body {
   overflow-y: scroll;
   overflow-x: hidden;
   overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
 .mail-result-content {
@@ -1084,6 +1091,8 @@ body {
   border-radius: 12px;
   padding: 14px;
   background: rgba(255, 255, 255, 0.68);
+  contain: layout paint;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
 }
 
 .workbench-result-card-error {
@@ -1126,12 +1135,14 @@ body {
   line-height: 1.4;
   text-align: left;
   cursor: pointer;
-  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+  contain: layout paint;
+  transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease, transform 150ms ease;
 }
 
 .result-message-item:hover {
   border-color: #bdd7ff;
   background: #eef6ff;
+  box-shadow: 0 8px 18px rgba(72, 108, 153, 0.08);
   transform: translateY(-1px);
 }
 
@@ -1316,6 +1327,29 @@ body {
 
 .workbench-modal .n-form-item {
   margin-bottom: 0;
+}
+
+.workbench-import-textarea.n-input {
+  width: 100%;
+  height: auto;
+  min-height: 340px;
+}
+
+.workbench-import-textarea .n-input-wrapper {
+  width: 100%;
+  height: auto;
+  min-height: 340px;
+  align-items: stretch;
+}
+
+.workbench-import-textarea .n-input__textarea-el {
+  width: 100%;
+  min-height: 306px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  line-height: 1.55;
+  resize: vertical;
 }
 
 .hero {

@@ -733,14 +733,14 @@
       </template>
     </n-modal>
 
-    <n-modal v-model:show="importVisible" preset="card" class="workbench-modal" title="批量导入邮箱" style="max-width: 720px">
+    <n-modal v-model:show="importVisible" preset="card" class="workbench-modal workbench-import-modal" title="批量导入邮箱" style="max-width: 860px">
       <n-space vertical size="small">
         <p class="hint">每行一个账号：账号----密码 或 账号----密码----client_id----refresh_token</p>
         <n-input
           v-model:value="importText"
           type="textarea"
-          class="workbench-input"
-          :autosize="{ minRows: 7, maxRows: 12 }"
+          class="workbench-input workbench-import-textarea"
+          :autosize="{ minRows: 12, maxRows: 18 }"
           placeholder="account@hotmail.com----password----client_id----refresh_token"
         />
       </n-space>
