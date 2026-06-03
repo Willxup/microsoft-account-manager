@@ -1329,26 +1329,48 @@ body {
   margin-bottom: 0;
 }
 
+.workbench-import-modal.n-card,
+.workbench-import-modal .n-card {
+  width: min(860px, calc(100vw - 28px));
+  max-height: min(760px, calc(100vh - 28px));
+  display: flex;
+  flex-direction: column;
+}
+
+.workbench-import-modal .n-card__content {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.workbench-import-modal .n-card__footer {
+  flex: 0 0 auto;
+}
+
 .workbench-import-textarea.n-input {
   width: 100%;
   height: auto;
-  min-height: 340px;
+  min-height: clamp(240px, 42vh, 340px);
+  max-height: min(420px, 46vh);
 }
 
 .workbench-import-textarea .n-input-wrapper {
   width: 100%;
   height: auto;
-  min-height: 340px;
+  min-height: clamp(240px, 42vh, 340px);
+  max-height: min(420px, 46vh);
   align-items: stretch;
 }
 
 .workbench-import-textarea .n-input__textarea-el {
   width: 100%;
-  min-height: 306px;
+  min-height: clamp(206px, calc(42vh - 34px), 306px);
+  max-height: min(386px, calc(46vh - 34px));
   padding-top: 10px;
   padding-bottom: 10px;
   font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   line-height: 1.55;
+  overflow: auto;
   resize: vertical;
 }
 

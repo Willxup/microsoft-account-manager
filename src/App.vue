@@ -740,7 +740,7 @@
           v-model:value="importText"
           type="textarea"
           class="workbench-input workbench-import-textarea"
-          :autosize="{ minRows: 12, maxRows: 18 }"
+          :autosize="{ minRows: 10, maxRows: 16 }"
           placeholder="account@hotmail.com----password----client_id----refresh_token"
         />
       </n-space>
@@ -2297,7 +2297,7 @@ async function fetchWorkbenchMailForRows(rows: AccountItem[]): Promise<void> {
       } catch (error) {
         if (error instanceof UnauthorizedError) {
           handleApiError(error);
-          break;
+          return;
         }
 
         results.push({
