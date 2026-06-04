@@ -193,7 +193,10 @@
               v-for="row in workbenchAccounts"
               :key="row.id"
               class="account-list-item"
-              :class="{ 'account-list-item-selected': isAccountChecked(row.id) }"
+              :class="{
+                'account-list-item-selected': isAccountChecked(row.id),
+                'account-list-item-current': currentWorkbenchAccountId === row.id
+              }"
               @click="handleWorkbenchRowCardClick(row.id)"
             >
               <n-checkbox
@@ -283,7 +286,7 @@
               <button
                 class="workbench-fetch-button workbench-fetch-button-selected"
                 type="button"
-                :disabled="checkedRowKeys.length === 0 || workbenchMailLoading"
+                :disabled="selectedWorkbenchRows.length === 0 || workbenchMailLoading"
                 @click="handleWorkbenchFetchSelected"
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -933,7 +936,7 @@ import {
   filterWorkbenchMailItems,
   formatWorkbenchAccountMeta,
   paginateWorkbenchAccounts,
-  toggleWorkbenchSelectedId
+  resolveWorkbenchFetchIds
 } from './workbench';
 import type { WorkbenchMailDetail } from './workbench';
 
@@ -966,6 +969,7 @@ const viewMode = ref<'workbench' | 'classic'>('workbench');
 const accounts = ref<AccountItem[]>([]);
 const searchKeyword = ref('');
 const checkedRowKeys = ref<number[]>([]);
+const currentWorkbenchAccountId = ref<number | null>(null);
 const tablePageSize = ref<number>(20);
 const workbenchPage = ref(1);
 const workbenchPageSize = ref<number>(DEFAULT_WORKBENCH_PAGE_SIZE);
@@ -1260,7 +1264,8 @@ const workbenchPagination = computed(() =>
 const workbenchAccounts = computed(() => workbenchPagination.value.items);
 
 const selectedWorkbenchRows = computed(() => {
-  const selectedIds = new Set(checkedRowKeys.value);
+  const fetchIds = resolveWorkbenchFetchIds(checkedRowKeys.value, currentWorkbenchAccountId.value);
+  const selectedIds = new Set(fetchIds);
   return accounts.value.filter((item) => selectedIds.has(item.id));
 });
 
@@ -1521,6 +1526,9 @@ function handleCheckedRowKeysUpdate(keys: Array<number | string>): void {
   checkedRowKeys.value = keys
     .map((value) => Number(value))
     .filter((value) => Number.isInteger(value) && value > 0);
+  if (checkedRowKeys.value.length > 0) {
+    currentWorkbenchAccountId.value = null;
+  }
 }
 
 function isAccountChecked(id: number): boolean {
@@ -1528,6 +1536,7 @@ function isAccountChecked(id: number): boolean {
 }
 
 function handleWorkbenchRowChecked(id: number, checked: boolean): void {
+  currentWorkbenchAccountId.value = null;
   if (checked) {
     if (!checkedRowKeys.value.includes(id)) {
       checkedRowKeys.value = [...checkedRowKeys.value, id];
@@ -1539,10 +1548,12 @@ function handleWorkbenchRowChecked(id: number, checked: boolean): void {
 }
 
 function handleWorkbenchRowCardClick(id: number): void {
-  checkedRowKeys.value = toggleWorkbenchSelectedId(checkedRowKeys.value, id);
+  currentWorkbenchAccountId.value = id;
+  checkedRowKeys.value = [];
 }
 
 function handleWorkbenchToggleCurrentPage(checked: boolean): void {
+  currentWorkbenchAccountId.value = null;
   const pageIds = workbenchAccounts.value.map((item) => item.id);
   if (checked) {
     checkedRowKeys.value = Array.from(new Set([...checkedRowKeys.value, ...pageIds]));
@@ -2021,6 +2032,9 @@ async function loadAccounts(): Promise<void> {
     accounts.value = response.items;
     const available = new Set(response.items.map((item) => item.id));
     checkedRowKeys.value = checkedRowKeys.value.filter((id) => available.has(id));
+    if (currentWorkbenchAccountId.value && !available.has(currentWorkbenchAccountId.value)) {
+      currentWorkbenchAccountId.value = null;
+    }
     Object.keys(aliasByAccountId).forEach((key) => {
       const id = Number(key);
       if (!available.has(id)) {

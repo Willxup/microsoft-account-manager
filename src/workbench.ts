@@ -117,6 +117,14 @@ export function toggleWorkbenchSelectedId(selectedIds: number[], id: number): nu
     : [...selectedIds, id];
 }
 
+export function resolveWorkbenchFetchIds(selectedIds: number[], currentId: number | null): number[] {
+  if (selectedIds.length > 0) {
+    return selectedIds;
+  }
+
+  return currentId ? [currentId] : [];
+}
+
 export function buildWorkbenchMailDetail(options: WorkbenchMailDetailOptions): WorkbenchMailDetail {
   const contentType = options.item.contentType.trim().toLowerCase();
   const content = options.item.content.trim() || options.item.preview.trim();

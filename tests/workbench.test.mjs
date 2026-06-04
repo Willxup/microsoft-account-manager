@@ -215,10 +215,13 @@ test('workbench mail detail normalizes graph html and imap text messages', async
   assert.equal(imapDetail.receivedAt, '-');
 });
 
-test('workbench toggles account selection when card is clicked', async () => {
-  const { toggleWorkbenchSelectedId } = await loadWorkbenchModule();
+test('workbench fetch ids prefer checked rows and fall back to current card', async () => {
+  const { resolveWorkbenchFetchIds, toggleWorkbenchSelectedId } = await loadWorkbenchModule();
 
   assert.deepEqual(toggleWorkbenchSelectedId([], 7), [7]);
   assert.deepEqual(toggleWorkbenchSelectedId([3, 7, 9], 7), [3, 9]);
   assert.deepEqual(toggleWorkbenchSelectedId([3], 9), [3, 9]);
+  assert.deepEqual(resolveWorkbenchFetchIds([], null), []);
+  assert.deepEqual(resolveWorkbenchFetchIds([], 7), [7]);
+  assert.deepEqual(resolveWorkbenchFetchIds([3, 9], 7), [3, 9]);
 });
