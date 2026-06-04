@@ -184,19 +184,6 @@
           </button>
         </div>
 
-        <div class="sidebar-select-line">
-          <n-checkbox
-            :checked="isWorkbenchPageAllChecked"
-            :indeterminate="isWorkbenchPagePartiallyChecked"
-            @update:checked="handleWorkbenchToggleCurrentPage"
-          >
-            全选当前页
-          </n-checkbox>
-          <button class="sidebar-clear-button" type="button" @click="checkedRowKeys = []">
-            清空选择
-          </button>
-        </div>
-
         <n-spin :show="tableLoading" class="account-list-region">
           <div v-if="workbenchAccounts.length === 0" class="sidebar-empty">
             <n-empty description="暂无邮箱" size="small" />
