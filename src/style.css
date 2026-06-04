@@ -426,9 +426,9 @@ body {
   --n-color: var(--primary) !important;
 }
 
-.account-sidebar > .n-spin,
-.account-sidebar > .n-spin .n-spin-container,
-.account-sidebar > .n-spin .n-spin-content {
+.account-list-region,
+.account-list-region .n-spin-container,
+.account-list-region .n-spin-content {
   min-height: 0;
   max-height: 100%;
   overflow: hidden;
@@ -451,9 +451,10 @@ body {
 
 .account-sidebar {
   min-height: 0;
+  height: 100%;
   padding: 10px;
-  display: grid;
-  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
@@ -721,24 +722,28 @@ body {
 }
 
 .sidebar-empty {
+  flex: 1;
+  min-height: 0;
   padding: 28px 0;
+  display: grid;
+  place-items: center;
 }
 
 .account-list {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  height: 100%;
+  flex: 1 1 auto;
   min-height: 0;
+  max-height: 100%;
   gap: 7px;
-  overflow-y: scroll;
+  overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   padding-right: 2px;
-  padding-bottom: 18px;
-  scroll-padding-bottom: 18px;
+  padding-bottom: 8px;
+  scroll-padding-bottom: 8px;
 }
 
 .account-list,
@@ -887,6 +892,7 @@ body {
 }
 
 .sidebar-pagination {
+  flex: 0 0 auto;
   position: relative;
   z-index: 1;
   margin-top: 8px;

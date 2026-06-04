@@ -197,7 +197,7 @@
           </button>
         </div>
 
-        <n-spin :show="tableLoading">
+        <n-spin :show="tableLoading" class="account-list-region">
           <div v-if="workbenchAccounts.length === 0" class="sidebar-empty">
             <n-empty description="暂无邮箱" size="small" />
           </div>
