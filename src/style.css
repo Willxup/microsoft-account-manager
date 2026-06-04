@@ -750,7 +750,7 @@ body {
 .classic-shell {
   scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: rgba(47, 103, 244, 0.42) rgba(255, 255, 255, 0.42);
+  scrollbar-color: rgba(124, 139, 158, 0.42) rgba(255, 255, 255, 0.42);
 }
 
 .account-list::-webkit-scrollbar,
@@ -772,22 +772,24 @@ body {
 .classic-shell::-webkit-scrollbar-thumb {
   border: 2px solid rgba(255, 255, 255, 0.64);
   border-radius: 999px;
-  background: rgba(47, 103, 244, 0.42);
+  background: rgba(124, 139, 158, 0.42);
 }
 
 .account-list::-webkit-scrollbar-thumb:hover,
 .mail-result-panel::-webkit-scrollbar-thumb:hover,
 .classic-shell::-webkit-scrollbar-thumb:hover {
-  background: rgba(47, 103, 244, 0.62);
+  background: rgba(99, 113, 132, 0.58);
 }
 
 .account-list-item {
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: 19px minmax(0, 1fr);
+  grid-template-rows: auto auto;
   align-items: start;
-  gap: 4px 8px;
-  min-height: 74px;
-  padding: 7px 8px;
+  gap: 7px 8px;
+  min-height: 104px;
+  padding: 9px 8px 10px;
   border: 1px solid #dfebf8;
   border-radius: 12px;
   background: rgba(248, 251, 255, 0.86);
@@ -818,6 +820,7 @@ body {
 
 .account-main {
   grid-column: 2;
+  grid-row: 1;
   min-width: 0;
   text-align: left;
 }
@@ -862,10 +865,13 @@ body {
 
 .account-row-actions {
   grid-column: 2;
+  grid-row: 2;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
+  min-height: 27px;
+  align-self: end;
 }
 
 .icon-action {
